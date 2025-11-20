@@ -10,8 +10,8 @@ readonly root
 if ! "$root/hack/build.sh" \
     --inject registry="docker.io/dubodubonduponey" \
     --inject progress=plain \
-	  --inject date=2025-05-01 \
-	  --inject suite=bookworm \
+	  --inject date=2025-11-01 \
+	  --inject suite=trixie \
     --inject platforms=linux/arm64 \
   	"image" "$@"; then
   printf >&2 "Failed building\n"

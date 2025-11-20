@@ -17,7 +17,7 @@ setup::buildkit() {
       --user root \
       --privileged \
       "$IMAGE_BLDKT"
-    docker exec --env QEMU_BINARY_PATH=/boot/bin/ dbdbdp-buildkit binfmt --install all
+    docker exec --env QEMU_BINARY_PATH=/magnetar/bin/ dbdbdp-buildkit binfmt --install all
     docker exec dbdbdp-buildkit mkdir /tmp/runtime
   }
 }

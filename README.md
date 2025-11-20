@@ -19,7 +19,7 @@ A docker image for [Samba](https://www.samba.org/) geared towards TimeMachine ba
     * [ ] process runs as a non-root user, disabled login, no shell
         * the entrypoint script runs as root
  * lightweight
-    * [x] based on our slim [Debian Bookworm](https://github.com/dubo-dubon-duponey/docker-debian)
+    * [x] based on our slim [Debian Trixie](https://github.com/dubo-dubon-duponey/docker-debian)
     * [x] simple entrypoint script
     * [ ] multi-stage build with ~~zero packages~~ `samba`, `samba-vfs-modules`, `smbclient` installed in the runtime image
  * observable

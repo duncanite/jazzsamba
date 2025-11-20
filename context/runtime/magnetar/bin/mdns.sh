@@ -118,7 +118,7 @@ mdns::start::dbus(){
   # https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
 
   local log_level="$1"
-  local dbussocket=/magnetar/runtime/dbus/system_bus_socket
+  local dbussocket="$XDG_RUNTIME_DIR/dbus/system_bus_socket"
   # Configuration file also has that ^ hardcoded, so, cannot use the variable...
 
   # Ensure directory exists

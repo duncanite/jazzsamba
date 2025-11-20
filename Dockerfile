@@ -1,7 +1,7 @@
 ARG           FROM_REGISTRY=docker.io/dubodubonduponey
 
-ARG           FROM_IMAGE_RUNTIME=base:runtime-bookworm-2025-05-01
-ARG           FROM_IMAGE_TOOLS=tools:linux-bookworm-2025-05-01
+ARG           FROM_IMAGE_RUNTIME=base:runtime-trixie-2025-11-01
+ARG           FROM_IMAGE_TOOLS=tools:linux-trixie-2025-11-01
 
 FROM          $FROM_REGISTRY/$FROM_IMAGE_TOOLS                                                                          AS builder-tools
 
@@ -10,47 +10,35 @@ FROM          $FROM_REGISTRY/$FROM_IMAGE_TOOLS                                  
 #######################
 FROM          $FROM_REGISTRY/$FROM_IMAGE_RUNTIME
 
-# hadolint ignore=DL3002
 USER          root
 
-# Install dependencies and tools
-RUN           --mount=type=secret,uid=100,id=CA \
-              --mount=type=secret,uid=100,id=CERTIFICATE \
-              --mount=type=secret,uid=100,id=KEY \
-              --mount=type=secret,uid=100,id=GPG.gpg \
+# Unclear if we need: tracker libtracker-sparql-1.0-dev (<- provides spotlight search thing)
+RUN           --mount=type=secret,uid=42,id=CA \
+              --mount=type=secret,uid=42,id=CERTIFICATE \
+              --mount=type=secret,uid=42,id=KEY \
+              --mount=type=secret,uid=42,id=GPG.gpg \
               --mount=type=secret,id=NETRC \
               --mount=type=secret,id=APT_SOURCES \
               --mount=type=secret,id=APT_CONFIG \
               apt-get update -qq && \
               apt-get install -qq --no-install-recommends \
-                samba=2:4.17.12+dfsg-0+deb12u1 \
-                samba-vfs-modules=2:4.17.12+dfsg-0+deb12u1 \
-                smbclient=2:4.17.12+dfsg-0+deb12u1 && \
+                samba=2:4.22.4+dfsg-1~deb13u1 \
+                samba-vfs-modules=2:4.22.4+dfsg-1~deb13u1 \
+                smbclient=2:4.22.4+dfsg-1~deb13u1 && \
               apt-get -qq autoremove      && \
               apt-get -qq clean           && \
               rm -rf /var/lib/apt/lists/* && \
               rm -rf /tmp/*               && \
               rm -rf /var/tmp/*
 
-RUN           groupadd smb-share \
-              && mkdir -p /media/home \
-              && mkdir -p /media/share \
-              && mkdir -p /media/timemachine \
-              && chown "$BUILD_UID":smb-share /media/home \
-              && chown "$BUILD_UID":smb-share /media/share \
-              && chown "$BUILD_UID":smb-share /media/timemachine \
-              && chmod g+srwx /media/home \
-              && chmod g+srwx /media/share \
-              && chmod g+srwx /media/timemachine
+# IMPORTANT: core dump location is NOT configurable at runtime
+RUN           groupadd smb-share && \
+              echo "kernel.core_pattern = /magnetar/state/samba/cores/core.%e.%p" >> /etc/sysctl.conf
 
-# Unclear if we need: tracker libtracker-sparql-1.0-dev (<- provides spotlight search thing)
+# Note: samba cannot work realistically without root.
+# USER          dubo-dubon-duponey
 
-# Samba core dumps location, not configurable and cannot be disabled
-RUN           rm -Rf /var/log/samba; ln -s /tmp/samba/logs /var/log/samba
-
-USER          dubo-dubon-duponey
-
-COPY          --from=builder-tools --chown=$BUILD_UID:root /boot/bin/goello-server-ng /boot/bin/goello-server-ng
+COPY          --from=builder-tools --chown=$BUILD_UID:root /magnetar/bin/goello-server-ng /magnetar/bin/goello-server-ng
 
 ENV           _SERVICE_NICK="TimeSamba"
 ENV           _SERVICE_TYPE="_smb._tcp"
@@ -77,9 +65,8 @@ EXPOSE        445
 VOLUME        /etc
 
 VOLUME        "$XDG_DATA_HOME"
-VOLUME        "$XDG_CONFIG_HOME"
-VOLUME        "$XDG_STATE_HOME"
-VOLUME        "$XDG_CACHE_HOME"
 VOLUME        "$XDG_RUNTIME_DIR"
+VOLUME        "$XDG_CACHE_HOME"
+VOLUME        "$XDG_STATE_HOME"
 
 HEALTHCHECK   --interval=120s --timeout=30s --start-period=10s --retries=1 CMD smbclient -L \\localhost -U % -m SMB3 || exit 1
