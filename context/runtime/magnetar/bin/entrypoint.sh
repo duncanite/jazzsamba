@@ -8,33 +8,31 @@ readonly root
 # shellcheck source=/dev/null
 . "$root/mdns.sh"
 
+helpers::logger::set "$LOG_LEVEL"
+
+helpers::logger::log INFO "[entrypoint]" "🎬 Starting container"
+
+helpers::logger::log INFO "[entrypoint]" "🔐 Checking permissions"
+
 # Necessary for user accounts creation - and a royal PITA
 helpers::dir::writable /etc
 
-# Unix users
+# Homes, shares, time machine
 helpers::dir::writable "$XDG_DATA_HOME"/samba/home create
-
-# Samba locations
 helpers::dir::writable "$XDG_DATA_HOME"/samba/share create
 helpers::dir::writable "$XDG_DATA_HOME"/samba/timemachine create
 
-# Set ownership on data dirs
-chown dubo-dubon-duponey:smb-share "$XDG_DATA_HOME"/samba/home
-chown dubo-dubon-duponey:smb-share "$XDG_DATA_HOME"/samba/share
-chown dubo-dubon-duponey:smb-share "$XDG_DATA_HOME"/samba/timemachine
-# Sticky bit
+# Add sticky bit
 chmod g+srwx "$XDG_DATA_HOME"/samba/home
 chmod g+srwx "$XDG_DATA_HOME"/samba/share
 chmod g+srwx "$XDG_DATA_HOME"/samba/timemachine
 
+# Internal folders for samba
 helpers::dir::writable "$XDG_DATA_HOME"/samba/private create
-
 helpers::dir::writable "$XDG_RUNTIME_DIR"/samba/lock create
 helpers::dir::writable "$XDG_RUNTIME_DIR"/samba/pid create
 helpers::dir::writable "$XDG_RUNTIME_DIR"/samba/rpc create
-
 helpers::dir::writable "$XDG_CACHE_HOME"/samba/cache create
-
 helpers::dir::writable "$XDG_STATE_HOME"/samba/state create
 helpers::dir::writable "$XDG_STATE_HOME"/samba/cores create
 
@@ -42,18 +40,19 @@ helpers::dir::writable "$XDG_STATE_HOME"/samba/cores create
 helpers::createUser(){
   local login="$1"
   local password="$2"
-  # adduser --home "$XDG_DATA_HOME/samba/home/$login" --disabled-password --ingroup smb-share --gecos '' "$login" || {
   useradd -m -d "$XDG_DATA_HOME/samba/home/$login" -g smb-share -s /usr/sbin/nologin "$login" || {
-    printf "%s\n" "WARN: failed creating user. Possibly it already exists."
+    helpers::logger::log WARNING "⚠️ Failed creating user $login. Possibly it already exists."
   }
 
   # Ensure the user timemachine folder is there, owned by them
   helpers::dir::writable "$XDG_DATA_HOME/samba/timemachine/$login" create
-  chown "$login:smb-share" "$XDG_DATA_HOME/samba/timemachine/$login"
+  chown "$login:root" "$XDG_DATA_HOME/samba/timemachine/$login"
 
   printf "%s:%s" "$login" "$password" | chpasswd
   printf "%s\n%s\n" "$password" "$password" | smbpasswd -c "$XDG_CONFIG_DIRS"/samba/main.conf -a "$login"
 }
+
+helpers::logger::log INFO "[entrypoint]" "👥 Creating users"
 
 # shellcheck disable=SC2206
 USERS=($USERS)
@@ -71,7 +70,7 @@ done
 
 # Convert log level to samba lingo
 ll=0
-case "${LOG_LEVEL:-warn}" in
+case "${LOG_LEVEL:-warning}" in
   "debug")
     ll=3
   ;;
@@ -81,10 +80,15 @@ case "${LOG_LEVEL:-warn}" in
   "warn")
     ll=1
   ;;
+  "warning")
+    ll=1
+  ;;
   "error")
     ll=0
   ;;
 esac
+
+helpers::logger::log INFO "[entrypoint]" "📡 Starting mDNS"
 
 # mDNS
 [ "${MOD_MDNS_ENABLED:-}" != true ] || {
@@ -97,5 +101,8 @@ esac
   mdns::start::broadcaster
 }
 
-# Foreground -F, log to stdout -S, debug level -d, unclear "no process group"
+helpers::logger::log INFO "[entrypoint]" "🚀 Starting Samba"
+
+exec > >(helpers::logger::slurp "[${LOG_LEVEL}]" "[samba]")
+exec 2> >(helpers::logger::slurp "[ERROR]" "[samba]")
 exec smbd -F --debug-stdout -d="$ll" --no-process-group --configfile="$XDG_CONFIG_DIRS"/samba/main.conf "$@"

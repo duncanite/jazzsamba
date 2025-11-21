@@ -10,6 +10,7 @@ FROM          $FROM_REGISTRY/$FROM_IMAGE_TOOLS                                  
 #######################
 FROM          $FROM_REGISTRY/$FROM_IMAGE_RUNTIME
 
+# hadolint ignore=DL3002
 USER          root
 
 # Unclear if we need: tracker libtracker-sparql-1.0-dev (<- provides spotlight search thing)
@@ -54,7 +55,7 @@ ENV           MOD_MDNS_NAME="$_SERVICE_NICK mDNS display name"
 # The service will be annonced and reachable at $MOD_MDNS_HOST.local (set to empty string to disable mDNS announces entirely)
 ENV           MOD_MDNS_HOST="$_SERVICE_NICK"
 # Also announce the service as a workstation (for example for the benefit of coreDNS mDNS)
-ENV           ADVANCED_MOD_MDNS_STATION=true
+ENV           ADVANCED_MOD_MDNS_STATION=false
 
 ENV           MODEL="MacPro6,1"
 ENV           USERS=""
