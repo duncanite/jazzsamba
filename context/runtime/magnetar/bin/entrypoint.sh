@@ -40,7 +40,7 @@ helpers::dir::writable "$XDG_STATE_HOME"/samba/cores create
 helpers::createUser(){
   local login="$1"
   local password="$2"
-  useradd -m -d "$XDG_DATA_HOME/samba/home/$login" -g smb-share -s /usr/sbin/nologin "$login" || {
+  useradd -m -d "$XDG_DATA_HOME/samba/home/$login" -g smb-share -s /usr/sbin/nologin "$login" 2>/dev/null || {
     helpers::logger::log WARNING "⚠️ Failed creating user $login. Possibly it already exists."
   }
 
@@ -49,7 +49,7 @@ helpers::createUser(){
   chown "$login:root" "$XDG_DATA_HOME/samba/timemachine/$login"
 
   printf "%s:%s" "$login" "$password" | chpasswd
-  printf "%s\n%s\n" "$password" "$password" | smbpasswd -c "$XDG_CONFIG_DIRS"/samba/main.conf -a "$login"
+  printf "%s\n%s\n" "$password" "$password" | smbpasswd -c "$XDG_CONFIG_DIRS"/samba/main.conf -a "$login" >/dev/null
 }
 
 helpers::logger::log INFO "[entrypoint]" "👥 Creating users"
@@ -59,7 +59,6 @@ USERS=($USERS)
 # shellcheck disable=SC2206
 PASSWORDS=($PASSWORDS)
 
-printf "Creating users\n"
 for ((index=0; index<${#USERS[@]}; index++)); do
   helpers::createUser "${USERS[$index]}" "${PASSWORDS[$index]}"
 done
@@ -103,6 +102,6 @@ helpers::logger::log INFO "[entrypoint]" "📡 Starting mDNS"
 
 helpers::logger::log INFO "[entrypoint]" "🚀 Starting Samba"
 
-exec > >(helpers::logger::slurp "[${LOG_LEVEL}]" "[samba]")
-exec 2> >(helpers::logger::slurp "[ERROR]" "[samba]")
+exec > >(helpers::logger::slurp "$LOG_LEVEL" "[samba]")
+exec 2> >(helpers::logger::slurp ERROR "[samba]")
 exec smbd -F --debug-stdout -d="$ll" --no-process-group --configfile="$XDG_CONFIG_DIRS"/samba/main.conf "$@"
