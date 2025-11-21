@@ -35,19 +35,20 @@ RUN           --mount=type=secret,uid=42,id=CA \
 RUN           groupadd smb-share && \
               echo "kernel.core_pattern = /magnetar/state/samba/cores/core.%e.%p" >> /etc/sysctl.conf
 
+# Garbage alert: no matter configuration, dcerpcd does not honor any log directive
+RUN           ln -sf /dev/stdout /var/log/samba/log.samba-dcerpcd
+
 # Note: samba cannot work realistically without root.
 # USER          dubo-dubon-duponey
 
 COPY          --from=builder-tools --chown=$BUILD_UID:root /magnetar/bin/goello-server-ng /magnetar/bin/goello-server-ng
 
 ENV           _SERVICE_NICK="TimeSamba"
-ENV           _SERVICE_TYPE="_smb._tcp"
+ENV           _SERVICE_PORT=445
 
 ### mDNS broadcasting
 # Whether to enable MDNS broadcasting or not
 ENV           MOD_MDNS_ENABLED=true
-# Type to advertise
-ENV           ADVANCED_MOD_MDNS_TYPE="$_SERVICE_TYPE"
 # Name is used as a short description for the service
 ENV           MOD_MDNS_NAME="$_SERVICE_NICK mDNS display name"
 # The service will be annonced and reachable at $MOD_MDNS_HOST.local (set to empty string to disable mDNS announces entirely)
@@ -55,11 +56,11 @@ ENV           MOD_MDNS_HOST="$_SERVICE_NICK"
 # Also announce the service as a workstation (for example for the benefit of coreDNS mDNS)
 ENV           ADVANCED_MOD_MDNS_STATION=true
 
-ENV           MODEL="RackMac"
+ENV           MODEL="MacPro6,1"
 ENV           USERS=""
 ENV           PASSWORDS=""
 
-EXPOSE        445
+EXPOSE        $_SERVICE_PORT
 
 # Necessary for users creation - XXX this is problematic as it will keep back /etc/apt for eg
 VOLUME        /etc

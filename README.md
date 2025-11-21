@@ -16,7 +16,7 @@ A docker image for [Samba](https://www.samba.org/) geared towards TimeMachine ba
         * SETUID
         * SETGID
         * DAC_OVERRIDE
-    * [ ] process runs as a non-root user, disabled login, no shell
+    * [ ] ~~process runs as a non-root user, disabled login, no shell~~
         * the entrypoint script runs as root
  * lightweight
     * [x] based on our slim [Debian Trixie](https://github.com/dubo-dubon-duponey/docker-debian)
@@ -25,7 +25,7 @@ A docker image for [Samba](https://www.samba.org/) geared towards TimeMachine ba
  * observable
     * [x] healthcheck
     * [x] log to stdout
-    * [ ] ~~prometheus endpoint~~ not applicable
+    * [ ] ~~prometheus endpoint~~
 
 ## Run
 
@@ -47,9 +47,9 @@ docker run -d --rm \
         --cap-add CHOWN \
         --cap-add SETUID \
         --cap-add SETGID \
-        --volume [host_path]:/media/home \
-        --volume [host_path]:/media/share \
-        --volume [host_path]:/media/timemachine \
+        --volume [host_path]:/magnetar \
+        --volume [host_path]:/tmp \
+        --volume [host_path]:/etc \
         docker.io/dubodubonduponey/samba
 ```
 
@@ -68,6 +68,7 @@ The following extra environment variables lets you further configure the image b
 * MOD_MDNS_NAME controls the fancy name
 * USERS is a space separated list of users
 * PASSWORDS is a space separated list of passwords
+* MODEL allows controlling the icon for TimeMachine
 
 The image runs read-only, but the following volumes are mounted rw:
 * /etc this is necessary to allow for on-the-fly user creation
@@ -77,10 +78,7 @@ The image runs read-only, but the following volumes are mounted rw:
 * /magnetar/cache
 * /magnetar/state
 * /magnetar/runtime
-
-Samba is started with -c /magnetar/system/config/samba/main.conf
-
-You may evidently mount this file to further control samba configuration and behavior.
+* /magnetar/system/config/samba/main.conf where your samba config should live (see example for inspiration)
 
 ### Advanced configuration
 

@@ -8,14 +8,6 @@ readonly root
 # shellcheck source=/dev/null
 . "$root/mdns.sh"
 
-# NOTE on root. Samba cannot realistically work without it.
-# if [ "$(id -u)" == 0 ]; then
-# shellcheck source=/dev/null
-. "$root/root.sh"
-#  exec su -s /bin/bash myuser -c "$root/entrypoint.sh"
-#  exit
-# fi
-
 # Necessary for user accounts creation - and a royal PITA
 helpers::dir::writable /etc
 
@@ -96,10 +88,11 @@ esac
 
 # mDNS
 [ "${MOD_MDNS_ENABLED:-}" != true ] || {
-  [ "${ADVANCED_MOD_MDNS_STATION:-}" != true ] || mdns::records::add "_workstation._tcp" "${MOD_MDNS_HOST}" "${MOD_MDNS_NAME:-}" 445
-  mdns::records::add "${ADVANCED_MOD_MDNS_TYPE:-_smb._tcp}" "${MOD_MDNS_HOST:-}" "${MOD_MDNS_NAME:-}" 445
-  mdns::records::add "_device-info._tcp"       "${MOD_MDNS_HOST:-}" "${MOD_MDNS_NAME:-}" 445 '["model='"${MODEL:-RackMac}"'"]'
-  mdns::records::add "_adisk._tcp"             "${MOD_MDNS_HOST:-}" "${MOD_MDNS_NAME:-}" 445 '["sys=waMa=0,adVF=0x100", "dk0=adVN=timemachine,adVF=0x82"]'
+  [ "${ADVANCED_MOD_MDNS_STATION:-}" != true ] || mdns::records::add "_workstation._tcp" "${MOD_MDNS_HOST}" "${MOD_MDNS_NAME:-}" "$_SERVICE_PORT"
+  mdns::records::add "_smb._tcp" "${MOD_MDNS_HOST:-}" "${MOD_MDNS_NAME:-}" "$_SERVICE_PORT"
+  # device info and adisk are not service, but informational. Port 0 is thus correct.
+  mdns::records::add "_device-info._tcp"       "${MOD_MDNS_HOST:-}" "${MOD_MDNS_NAME:-}" "0" '["model='"${MODEL:-MacPro6,1}"'"]'
+  mdns::records::add "_adisk._tcp"             "${MOD_MDNS_HOST:-}" "${MOD_MDNS_NAME:-}" "0" '["sys=waMa=0,adVF=0x100", "dk0=adVN=timemachine,adVF=0x82"]'
   mdns::start::broadcaster
 }
 
