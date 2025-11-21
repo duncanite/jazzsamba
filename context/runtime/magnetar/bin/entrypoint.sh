@@ -89,6 +89,11 @@ esac
 
 helpers::logger::log INFO "[entrypoint]" "📡 Starting mDNS"
 
+helpers::logger::log INFO "[entrypoint]" "🚀 Starting Samba"
+
+exec > >(helpers::logger::slurp "$LOG_LEVEL" "[samba]")
+exec 2> >(helpers::logger::slurp ERROR "[samba]")
+
 # mDNS
 [ "${MOD_MDNS_ENABLED:-}" != true ] || {
   [ "${ADVANCED_MOD_MDNS_STATION:-}" != true ] || mdns::records::add "_workstation._tcp" "${MOD_MDNS_HOST}" "${MOD_MDNS_NAME:-}" "$_SERVICE_PORT"
@@ -100,8 +105,4 @@ helpers::logger::log INFO "[entrypoint]" "📡 Starting mDNS"
   mdns::start::broadcaster
 }
 
-helpers::logger::log INFO "[entrypoint]" "🚀 Starting Samba"
-
-exec > >(helpers::logger::slurp "$LOG_LEVEL" "[samba]")
-exec 2> >(helpers::logger::slurp ERROR "[samba]")
 exec smbd -F --debug-stdout -d="$ll" --no-process-group --configfile="$XDG_CONFIG_DIRS"/samba/main.conf "$@"

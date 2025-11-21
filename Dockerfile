@@ -24,8 +24,7 @@ RUN           --mount=type=secret,uid=42,id=CA \
               apt-get update -qq && \
               apt-get install -qq --no-install-recommends \
                 samba=2:4.22.4+dfsg-1~deb13u1 \
-                samba-vfs-modules=2:4.22.4+dfsg-1~deb13u1 \
-                smbclient=2:4.22.4+dfsg-1~deb13u1 && \
+                samba-vfs-modules=2:4.22.4+dfsg-1~deb13u1 && \
               apt-get -qq autoremove      && \
               apt-get -qq clean           && \
               rm -rf /var/lib/apt/lists/* && \
@@ -42,7 +41,7 @@ RUN           ln -sf /dev/stdout /var/log/samba/log.samba-dcerpcd
 # Note: samba cannot work realistically without root.
 # USER          dubo-dubon-duponey
 
-COPY          --from=builder-tools --chown=$BUILD_UID:root /magnetar/bin/goello-server-ng /magnetar/bin/goello-server-ng
+COPY          --from=builder-tools /magnetar/bin/goello-server-ng /magnetar/bin/goello-server-ng
 
 ENV           _SERVICE_NICK="TimeSamba"
 ENV           _SERVICE_PORT=445
@@ -71,4 +70,4 @@ VOLUME        "$XDG_RUNTIME_DIR"
 VOLUME        "$XDG_CACHE_HOME"
 VOLUME        "$XDG_STATE_HOME"
 
-HEALTHCHECK   --interval=120s --timeout=30s --start-period=10s --retries=1 CMD smbclient -L \\localhost -U % -m SMB3 || exit 1
+HEALTHCHECK   --interval=120s --timeout=30s --start-period=10s --retries=1 CMD smbstatus --configfile /magnetar/system/config/samba/main.conf >/dev/null 2>&1 || exit 1
