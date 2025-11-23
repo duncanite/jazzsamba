@@ -49,7 +49,6 @@ docker run -d --rm \
         --cap-add SETGID \
         --volume [host_path]:/magnetar \
         --volume [host_path]:/tmp \
-        --volume [host_path]:/etc \
         docker.io/dubodubonduponey/samba
 ```
 

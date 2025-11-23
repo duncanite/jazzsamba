@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
+trap 'exit 1' TERM
+
 root="$(cd "$(dirname "${BASH_SOURCE[0]:-$PWD}")" 2>/dev/null 1>&2 && pwd)"
 readonly root
 # shellcheck source=/dev/null
@@ -8,11 +10,8 @@ readonly root
 # shellcheck source=/dev/null
 . "$root/mdns.sh"
 
-helpers::logger::set "$LOG_LEVEL"
-
-helpers::logger::log INFO "[entrypoint]" "🎬 Starting container"
-
-helpers::logger::log INFO "[entrypoint]" "🔐 Checking permissions"
+helpers::logger::set LOG_LEVEL
+helpers::logger::log INFO "🎬 entrypoint" "starting container"
 
 # Necessary for user accounts creation - and a royal PITA
 helpers::dir::writable /etc
@@ -41,7 +40,7 @@ helpers::createUser(){
   local login="$1"
   local password="$2"
   useradd -m -d "$XDG_DATA_HOME/samba/home/$login" -g smb-share -s /usr/sbin/nologin "$login" 2>/dev/null || {
-    helpers::logger::log WARNING "⚠️ Failed creating user $login. Possibly it already exists."
+    helpers::logger::log WARNING "⚠️entrypoint" "Failed creating user $login. Possibly it already exists."
   }
 
   # Ensure the user timemachine folder is there, owned by them
@@ -52,7 +51,7 @@ helpers::createUser(){
   printf "%s\n%s\n" "$password" "$password" | smbpasswd -c "$XDG_CONFIG_DIRS"/samba/main.conf -a "$login" >/dev/null
 }
 
-helpers::logger::log INFO "[entrypoint]" "👥 Creating users"
+helpers::logger::log INFO "👥 entrypoint" "Creating users"
 
 # shellcheck disable=SC2206
 USERS=($USERS)
@@ -87,12 +86,9 @@ case "${LOG_LEVEL:-warning}" in
   ;;
 esac
 
-helpers::logger::log INFO "[entrypoint]" "📡 Starting mDNS"
+helpers::logger::log INFO "📡 entrypoint" "Starting mDNS"
 
-helpers::logger::log INFO "[entrypoint]" "🚀 Starting Samba"
-
-exec > >(helpers::logger::slurp "$LOG_LEVEL" "[samba]")
-exec 2> >(helpers::logger::slurp ERROR "[samba]")
+helpers::logger::log INFO "🚀 entrypoint" "starting main"
 
 # mDNS
 [ "${MOD_MDNS_ENABLED:-}" != true ] || {
@@ -105,4 +101,13 @@ exec 2> >(helpers::logger::slurp ERROR "[samba]")
   mdns::start::broadcaster
 }
 
-exec smbd -F --debug-stdout -d="$ll" --no-process-group --configfile="$XDG_CONFIG_DIRS"/samba/main.conf "$@"
+#exec smbd -F --debug-stdout -d="$ll" --no-process-group --configfile="$XDG_CONFIG_DIRS"/samba/main.conf "$@"
+(
+  exec > >(helpers::logger::slurp "$LOG_LEVEL" "💃 samba")
+  exec 2> >(helpers::logger::slurp ERROR "💃 samba")
+  smbd -F --debug-stdout -d="$ll" --no-process-group --configfile="$XDG_CONFIG_DIRS"/samba/main.conf "$@"
+) &
+
+main_pid=$!
+helpers::logger::log INFO "⌛ entrypoint" "watching ($main_pid)"
+wait $main_pid

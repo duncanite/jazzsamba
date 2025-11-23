@@ -64,10 +64,16 @@ mdns::start::default(){
 mdns::start::broadcaster(){
   [ ! -e "$_default_mod_mdns_configuration_path" ] || mdns::records::load "$_default_mod_mdns_configuration_path"
   local IFS=","
-  goello-server-ng -json "[${_internal_mod_mdns_records[*]}]" &
+  (
+    exec > >(helpers::logger::slurp "$LOG_LEVEL" "📡 mdns")
+    exec 2> >(helpers::logger::slurp ERROR "📡 mdns")
+    goello-server-ng -json "[${_internal_mod_mdns_records[*]}]"
+  ) && helpers::logger::log INFO "📡 mdns" "stopped properly" \
+    || helpers::emergency "📡 mdns" "error code $?" &
 }
 
 mdns::start::avahi(){
+  helpers::logger::log INFO "📡 avahi" "starting"
   # Current issues with Avahi:
   # - no way to change /run/avahi-daemon to another location - symlink works though (has to happen in the Dockerfile obviously)
   # - daemonization writing to syslog is a problem
@@ -76,8 +82,6 @@ mdns::start::avahi(){
   # Some variant of it: https://github.com/lathiat/avahi/issues/349
   # - project is half-dead anyway: https://github.com/lathiat/avahi/issues/388
 
-  local log_level="$1"
-  local args=()
   local avahisocket="/run/avahi-daemon/socket"
 
   # Make sure we can write it
@@ -86,18 +90,15 @@ mdns::start::avahi(){
   # Cleanup leftovers on container restart
   rm -f "$(dirname "$avahisocket")/pid"
 
-  [ "$log_level" != "debug" ] || args+=(--debug)
-
+  # Note: avahi is very chatty on stderr, so, slap it at debug
   # -D/--daemonize implies -s/--syslog that we do not want, so, just background it
   # shellcheck disable=SC2015
   {
-    {
-      avahi-daemon -f "$XDG_CONFIG_DIRS"/avahi/main.conf --no-drop-root --no-chroot "${args[@]}" 2>&1
-    } > >(helpers::logger::slurp "$log_level" "[avahi]") \
-      && helpers::logger::log INFO "[avahi]" "Avahi stopped" \
-      || helpers::logger::log ERROR "[avahi]" "Avahi stopped with exit code: $?"
-  } &
-
+    avahi-daemon -f "$XDG_CONFIG_DIRS"/avahi/main.conf --no-drop-root --no-chroot --debug \
+      > >(helpers::logger::slurp DEBUG "📡 avahi") \
+      2> >(helpers::logger::slurp DEBUG "📡 avahi")
+  } && helpers::logger::log INFO "📡 avahi" "stopped properly" \
+    || helpers::emergency "📡 avahi" "error code $?" &
 
   local tries=1
   # Wait until the socket is there
@@ -105,40 +106,37 @@ mdns::start::avahi(){
     sleep 1s
     tries=$(( tries + 1))
     [ $tries -lt 10 ] || {
-      helpers::logger::log ERROR "[avahi]" "Failed starting avahi in a reasonable time. Something is quite wrong"
+      helpers::logger::log ERROR "📡 avahi" "failed starting in a reasonable time"
       return 1
     }
-    helpers::logger::log DEBUG "[avahi]" "Avahi started successfully"
+    helpers::logger::log INFO "📡 avahi" "started successfully"
   done
 }
 
 mdns::start::dbus(){
+  helpers::logger::log INFO "🚌 dbus" "starting"
   # https://linux.die.net/man/1/dbus-daemon-1
   # https://man7.org/linux/man-pages/man3/sd_bus_default.3.html
   # https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
 
-  local log_level="$1"
   local dbussocket="$XDG_RUNTIME_DIR/dbus/system_bus_socket"
-  # Configuration file also has that ^ hardcoded, so, cannot use the variable...
 
   # Ensure directory exists
-  helpers::dir::writable "$(dirname "$dbussocket")" create
+  helpers::dir::writable "$XDG_RUNTIME_DIR/dbus" create
 
   # Point it there for other systems
   export DBUS_SYSTEM_BUS_ADDRESS=unix:path="$dbussocket"
   export DBUS_SESSION_BUS_ADDRESS=unix:path="$dbussocket"
 
-  # Start it, without a PID file, no fork
-  # XXX somehow right now shairport-sync is not happy - disable custom config for now
-  # dbus-daemon --nofork --nopidfile --nosyslog --config-file "$XDG_CONFIG_DIRS"/dbus/main.conf
   # shellcheck disable=SC2015
   {
-    {
-      dbus-daemon --system --nofork --nopidfile --nosyslog 2>&1
-    } > >(helpers::logger::slurp "$log_level" "[dbus]") \
-      && helpers::logger::log INFO "[dbus]" "DBUS stopped" \
-      || helpers::logger::log ERROR "[dbus]" "DBUS stopped with exit code: $?"
-  } &
+    dbus-daemon --nofork --nopidfile --nosyslog \
+      --config-file "$XDG_CONFIG_DIRS"/dbus/main.conf \
+      --address=unix:path="$dbussocket" \
+    > >(helpers::logger::slurp DEBUG "🚌 dbus") \
+    2> >(helpers::logger::slurp ERROR "🚌 dbus")
+  } && helpers::logger::log INFO "🚌 dbus" "stopped properly" \
+    || helpers::emergency "🚌 dbus" "error code $?" &
 
   local tries=1
   # Wait until the socket is there
@@ -146,9 +144,9 @@ mdns::start::dbus(){
     sleep 1s
     tries=$(( tries + 1))
     [ $tries -lt 10 ] || {
-      helpers::logger::log ERROR "[dbus]" "Failed starting dbus in a reasonable time. Something is quite wrong"
+      helpers::logger::log ERROR "🚌 dbus" "failed starting DBUS in a reasonable time"
       return 1
     }
   done
-  helpers::logger::log DEBUG "[dbus]" "DBUS started successfully"
+  helpers::logger::log INFO "🚌 dbus" "started successfully"
 }

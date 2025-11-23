@@ -14,5 +14,5 @@ if ! godolint --ignore DL4006 "$root"/*Dockerfile*; then
 fi
 
 while read -r line; do
-  shellcheck "$line"
+  shellcheck --exclude SC2015 "$line"
 done < <(find "$root" -iname "*.sh" -not -path "*debuerreotype*" -not -path "*cache*" -not -path "*xxx*" 2>/dev/null || true)

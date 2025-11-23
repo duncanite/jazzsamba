@@ -43,7 +43,7 @@ RUN           ln -sf /dev/stdout /var/log/samba/log.samba-dcerpcd
 
 COPY          --from=builder-tools /magnetar/bin/goello-server-ng /magnetar/bin/goello-server-ng
 
-ENV           _SERVICE_NICK="TimeSamba"
+ENV           _SERVICE_NICK="JazzSamba"
 ENV           _SERVICE_PORT=445
 
 ### mDNS broadcasting
@@ -62,12 +62,13 @@ ENV           PASSWORDS=""
 
 EXPOSE        $_SERVICE_PORT
 
-# Necessary for users creation - XXX this is problematic as it will keep back /etc/apt for eg
+# Necessary for users creation - this is problematic
 VOLUME        /etc
 
-VOLUME        "$XDG_DATA_HOME"
-VOLUME        "$XDG_RUNTIME_DIR"
-VOLUME        "$XDG_CACHE_HOME"
-VOLUME        "$XDG_STATE_HOME"
+# These are necessary at runtime
+#VOLUME        "$XDG_DATA_HOME"
+#VOLUME        "$XDG_RUNTIME_DIR"
+#VOLUME        "$XDG_CACHE_HOME"
+#VOLUME        "$XDG_STATE_HOME"
 
 HEALTHCHECK   --interval=120s --timeout=30s --start-period=10s --retries=1 CMD smbstatus --configfile /magnetar/system/config/samba/main.conf >/dev/null 2>&1 || exit 1
