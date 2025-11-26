@@ -24,7 +24,8 @@ RUN           --mount=type=secret,uid=42,id=CA \
               apt-get update -qq && \
               apt-get install -qq --no-install-recommends \
                 samba=2:4.22.4+dfsg-1~deb13u1 \
-                samba-vfs-modules=2:4.22.4+dfsg-1~deb13u1 && \
+                samba-vfs-modules=2:4.22.4+dfsg-1~deb13u1 \
+                age=1.2.1-1+b5 && \
               apt-get -qq autoremove      && \
               apt-get -qq clean           && \
               rm -rf /var/lib/apt/lists/* && \
@@ -36,7 +37,7 @@ RUN           groupadd smb-share && \
               echo "kernel.core_pattern = /magnetar/state/samba/cores/core.%e.%p" >> /etc/sysctl.conf
 
 # Garbage alert: no matter configuration, dcerpcd does not honor any log directive
-RUN           ln -sf /dev/stdout /var/log/samba/log.samba-dcerpcd
+RUN           ln -s "$XDG_RUNTIME_DIR"/log.samba-dcerpcd /var/log/samba/log.samba-dcerpcd
 
 # Note: samba cannot work realistically without root.
 # USER          dubo-dubon-duponey

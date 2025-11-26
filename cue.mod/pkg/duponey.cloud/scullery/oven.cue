@@ -102,7 +102,7 @@ import (
 			set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
 			root="$1"
-			git -C "$root" remote get-url origin | sed -E 's,.git$,,' | sed -E 's,^[a-z-]+:([^/]),https://github.com/\1,'
+			git -C "$root" remote get-url origin | sed -E 's,.git$,,' | sed -E 's,^[a-z.@-]+:([^/]),https://github.com/\1,'
 
 			"""#, "--", cake.recipe.input.root]
 			stdout: string

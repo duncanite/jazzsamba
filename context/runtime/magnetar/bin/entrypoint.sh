@@ -35,10 +35,14 @@ helpers::dir::writable "$XDG_CACHE_HOME"/samba/cache create
 helpers::dir::writable "$XDG_STATE_HOME"/samba/state create
 helpers::dir::writable "$XDG_STATE_HOME"/samba/cores create
 
+helpers::logger::log INFO "👥 entrypoint" "Creating users"
+
 # helper to create user accounts
 helpers::createUser(){
-  local login="$1"
-  local password="$2"
+  local login
+  local password=
+  login="$(cat "$1")"
+  password="$(cat "$2")"
   useradd -m -d "$XDG_DATA_HOME/samba/home/$login" -g smb-share -s /usr/sbin/nologin "$login" 2>/dev/null || {
     helpers::logger::log WARNING "⚠️entrypoint" "Failed creating user $login. Possibly it already exists."
   }
@@ -47,20 +51,20 @@ helpers::createUser(){
   helpers::dir::writable "$XDG_DATA_HOME/samba/timemachine/$login" create
   chown "$login:root" "$XDG_DATA_HOME/samba/timemachine/$login"
 
-  printf "%s:%s" "$login" "$password" | chpasswd
   printf "%s\n%s\n" "$password" "$password" | smbpasswd -c "$XDG_CONFIG_DIRS"/samba/main.conf -a "$login" >/dev/null
 }
 
-helpers::logger::log INFO "👥 entrypoint" "Creating users"
+# See note in Dockerfile
+touch "$XDG_RUNTIME_DIR"/log.samba-dcerpcd
+helpers::logger::ingest INFO "💃 dcerpcd" "$XDG_RUNTIME_DIR"/log.samba-dcerpcd  || helpers::emergency "error logger" "error code $?" &
 
-# shellcheck disable=SC2206
-USERS=($USERS)
-# shellcheck disable=SC2206
-PASSWORDS=($PASSWORDS)
-
-for ((index=0; index<${#USERS[@]}; index++)); do
-  helpers::createUser "${USERS[$index]}" "${PASSWORDS[$index]}"
-done
+# Ingest secrets and shred them
+while IFS='=' read -r key value; do
+  [ -n "$key" ] && {
+    helpers::createUser <(printf "%s" "$key") <(printf "%s" "$value")
+  }
+done < <(age -d -i /secrets/key /secrets/secrets.age 2>/dev/null)
+shred -vfzu -n3 /secrets/key /secrets/secrets.age 2>/dev/null
 
 # https://jonathanmumm.com/tech-it/mdns-bonjour-bible-common-service-strings-for-various-vendors/
 # https://piware.de/2012/10/running-a-samba-server-as-normal-user-for-testing/
@@ -105,6 +109,7 @@ helpers::logger::log INFO "🚀 entrypoint" "starting main"
 (
   exec > >(helpers::logger::slurp "$LOG_LEVEL" "💃 samba")
   exec 2> >(helpers::logger::slurp ERROR "💃 samba")
+  # Technically, we should be able to drop privileges at this point.
   smbd -F --debug-stdout -d="$ll" --no-process-group --configfile="$XDG_CONFIG_DIRS"/samba/main.conf "$@"
 ) &
 
