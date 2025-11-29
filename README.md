@@ -35,8 +35,6 @@ docker run -d --rm \
         --name samba \
         --env MOD_MDNS_NAME=samba \
         --env MOD_MDNS_HOST=TimeSamba \
-        --env USERS=dubo-dubon-duponey \
-        --env PASSWORDS=replace_me \
         --read-only \
         --net host \
         --user root \
@@ -49,6 +47,8 @@ docker run -d --rm \
         --cap-add SETGID \
         --volume [host_path]:/magnetar \
         --volume [host_path]:/tmp \
+        --volume age_encrypted_users:/secrets/secrets.age \
+        --volume age_key:/secrets/key \
         docker.io/dubodubonduponey/samba
 ```
 
@@ -65,11 +65,9 @@ The following extra environment variables lets you further configure the image b
 * MOD_MDNS_HOST controls the host part under which the service is being announced (eg: $MOD_MDNS_HOST.local)
   * If set empty, will disable mDNS announcements altogether
 * MOD_MDNS_NAME controls the fancy name
-* USERS is a space separated list of users
-* PASSWORDS is a space separated list of passwords
 * MODEL allows controlling the icon for TimeMachine
 
-The image runs read-only, but the following volumes are mounted rw:
+The image runs read-only, but the following volumes are necessary (rw):
 * /etc this is necessary to allow for on-the-fly user creation
 * /magnetar/user/data/home where users homes are located
 * /magnetar/user/data/share where the common share is located
@@ -78,6 +76,11 @@ The image runs read-only, but the following volumes are mounted rw:
 * /magnetar/state
 * /magnetar/runtime
 * /magnetar/system/config/samba/main.conf where your samba config should live (see example for inspiration)
+
+Finally note that you must pass an age encrypted file for `users:password`,
+along with a decryption key.
+If you want these to disappear immediately after consumption, you may of course
+use and mount fifos (and feed the data through whatever appropriate mean).
 
 ### Advanced configuration
 

@@ -64,7 +64,6 @@ while IFS='=' read -r key value; do
     helpers::createUser <(printf "%s" "$key") <(printf "%s" "$value")
   }
 done < <(age -d -i /secrets/key /secrets/secrets.age 2>/dev/null)
-shred -vfzu -n3 /secrets/key /secrets/secrets.age 2>/dev/null
 
 # https://jonathanmumm.com/tech-it/mdns-bonjour-bible-common-service-strings-for-various-vendors/
 # https://piware.de/2012/10/running-a-samba-server-as-normal-user-for-testing/
